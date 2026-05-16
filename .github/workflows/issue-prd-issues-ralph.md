@@ -46,9 +46,10 @@ safe-outputs:
   add-comment:
     max: 20
   create-pull-request:
-    title-prefix: '[issue-automation] '
+    title-prefix: '[AI-Agent] '
     labels: [automation, automated, ready-for-review]
     draft: true
+    protected-files: fallback-to-issue
 ---
 
 # Issue Triage and Delivery
