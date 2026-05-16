@@ -14,7 +14,7 @@ on:
 engine: copilot
 strict: false
 
-timeout-minutes: 60
+timeout-minutes: 30
 
 permissions:
   contents: read
@@ -44,95 +44,63 @@ safe-outputs:
         full-process,
       ]
   add-comment:
-    max: 12
+    max: 20
   create-pull-request:
     title-prefix: '[issue-automation] '
     labels: [automation, automated, ready-for-review]
     draft: true
 ---
 
-# Issue Triage and Delivery (Compact)
+# Issue Triage and Delivery
 
-Process issue #${{ github.event.issue.number }} using labels as state.
+Aliases: `N` = issue number, `ISSUES` = `ISSUES-issue-N.md`, `BRANCH` = `issue-N`.
 
-## Global Rules
+RALPH executor: `npm run ralph -- N "<title>" issue-N [slice-name]`
+— runs `.github/skills/ralph/RALPH.md` as an autopilot prompt per slice, injecting the slice content as `{{SLICE_CONTEXT}}` and the path to `ISSUES` as `{{ISSUE_FILE}}` (used to check off acceptance criteria). Runs RGR/TDD, commits with `RALPH:` prefix, and signals `COMPLETE` when done. Do not re-describe these steps in this workflow.
 
-- Keep scope limited to this issue.
-- If blocked, post one status comment with blocker and stop.
-- Do not rewrite git history.
-- On issue_comment events, ignore comments authored by bots/agents; only human comments can advance state.
+Rules: scope to this issue; post one comment when blocked; no history rewrites; ignore bot comments on `issue_comment` events.
+
+**Entry guard** (check before doing any work):
+
+- On `issue_comment`: proceed only if the issue has at least one of `afk`, `hitl`, `grilling-needed`, `autonomous`, or title starts with `[Slice]`; otherwise stop silently.
+- On `issues.opened`: always proceed.
 
 ## Step 1: Classify and Label
 
-Classify as:
+| Classification   | Add                                            | Remove                                         |
+| ---------------- | ---------------------------------------------- | ---------------------------------------------- |
+| AFK              | `afk`, `autonomous`                            | `hitl`, `needs-human-input`, `grilling-needed` |
+| HITL             | `hitl`, `needs-human-input`, `grilling-needed` | `afk`, `autonomous`, `grill-complete`          |
+| simple scope     | `simple-task`                                  | `full-process`                                 |
+| non-simple scope | `full-process`                                 | `simple-task`                                  |
 
-- AFK: safe to implement without decisions
-- HITL: requires decisions, clarification, or approval
+Post one triage comment: classification, reason, next path.
 
-Apply labels:
+**AFK-to-HITL resume trigger** (used in Steps 2A and 3): human provides required answers, adds `afk`/`autonomous`, or writes "go ahead" / "just do it" / "AFK". On resume: add `grill-complete`, `autonomous`; remove `grilling-needed`, `needs-human-input`, `hitl`.
 
-- AFK: add afk, autonomous; remove hitl, needs-human-input, grilling-needed
-- HITL: add hitl, needs-human-input, grilling-needed; remove afk, autonomous, grill-complete
-- AFK simple scope: add simple-task, remove full-process
-- AFK non-simple scope: add full-process, remove simple-task
+## Step 2A: HITL Path
 
-Post one triage comment: classification, reason, and next path.
-
-## Step 2A: HITL Path (Question First)
-
-When HITL:
-
-- Do not implement and do not open PR.
-- Ask one structured grilling comment based on .github/skills/grill-me/SKILL.md.
-- Keep grilling-needed until all required answers are present.
-
-Resume and proceed to Step 2B when any of the following occurs:
-
-- A human comment provides all requested decisions.
-- A human manually adds the `afk` or `autonomous` label to the issue.
-- A human comment contains an explicit override such as "go ahead", "just do it", or "AFK".
-
-When resuming:
-
-- add grill-complete, autonomous
-- remove grilling-needed, needs-human-input, hitl
-- continue to Step 2B
+Do not implement. Post one grilling comment per .github/skills/grill-me/SKILL.md. Wait for resume trigger, then proceed to Step 2B.
 
 ## Step 2B: Autonomous Path
 
-### Simple-task lane (label: simple-task)
+**Simple-task**: skip PRD/ISSUES skills. Pass the full issue body as `{{SLICE_CONTEXT}}`; no `{{ISSUE_FILE}}` is used. Run RALPH. Once RALPH signals `COMPLETE`, open draft PR citing `RALPH:` commits as evidence. Add `automated`, `ready-for-review`. Post PR link.
 
-- Skip .github/skills/to-prd/SKILL.md and .github/skills/to-issues/SKILL.md.
-- Implement using RALPH autopilot: `npm run ralph -- ${{ github.event.issue.number }} "${{ github.event.issue.title }}" <branch>`
-- Open draft PR with concise summary, tests run, and why heavy steps were skipped.
-- Add automated and ready-for-review.
-- Post one issue comment with PR link.
+**Full-process**:
 
-### Full-process lane (label: full-process)
-
-- Run .github/skills/to-prd/SKILL.md -> PRD-issue-${{ github.event.issue.number }}.md
-- Run .github/skills/to-issues/SKILL.md -> ISSUES-issue-${{ github.event.issue.number }}.md
-- Ensure slices are vertical, ordered by dependency, and marked AFK/HITL with blocked-by links.
-- Inspect every slice in ISSUES-issue-${{ github.event.issue.number }}.md:
-  - **AFK slices**: run the RALPH loop immediately: `npm run ralph -- ${{ github.event.issue.number }} "${{ github.event.issue.title }}" <branch>`
-    - The script (`.github/scripts/ralph.sh`) processes only AFK slices; HITL-marked slices are skipped automatically.
-  - **HITL slices**: for each one, create a sub-issue of this issue with:
-    - Title: `[Slice] <slice-name> (issue #${{ github.event.issue.number }})`
-    - Body: the full slice content from ISSUES-issue-${{ github.event.issue.number }}.md plus a structured grilling comment (per .github/skills/grill-me/SKILL.md) identifying exactly what decision or information is needed to make this slice AFK.
-    - Labels: `hitl`, `needs-human-input`, `grilling-needed`, `full-process`
-    - Do NOT block the AFK slices from running while sub-issues are open.
-- Open draft PR for the AFK work completed so far, noting which slices are pending sub-issues.
-- Add ready-for-review and post one issue comment with PR link and a list of open sub-issues.
+1. **Idempotency**: if `PRD-issue-N.md` already exists on `BRANCH`, skip steps 2–3 and go straight to step 4.
+2. Run to-prd skill → `PRD-issue-N.md`; run to-issues skill → `ISSUES` (vertical slices, dependency-ordered, each marked AFK/HITL). Commit both to `BRANCH`.
+3. **AFK slices**: run RALPH once per AFK slice — pass each slice's body as `{{SLICE_CONTEXT}}` and `ISSUES` path as `{{ISSUE_FILE}}`; HITL-marked slices are skipped by `ralph.sh` automatically. Wait for `COMPLETE`.
+4. **HITL slices**: create one sub-issue per slice:
+   - Title: `[Slice] <slice-name> (issue #N)`
+   - Body: slice content from `ISSUES` + grilling questions (what is needed to make it AFK)
+   - Labels: `hitl`, `needs-human-input`, `grilling-needed`, `full-process`
+5. After all RALPH runs complete: open draft PR linking the `RALPH:` commits as delivery evidence. Add `ready-for-review`. Post PR link + list of open sub-issues (if any).
 
 ## Step 3: Sub-issue Resolution
 
-This workflow also triggers when a sub-issue (created in Step 2B full-process) is resolved. Detect a sub-issue by checking for the `[Slice]` prefix in the issue title.
+Detect sub-issues by `[Slice]` title prefix. Parse parent issue number and slice name from title.
 
-When a sub-issue transitions to AFK (human adds `afk`/`autonomous` label, or comments "go ahead" / "just do it" / "AFK"):
+**On resume trigger**: update slice in `ISSUES` to AFK, run RALPH with `"<slice-name>"` (slice content as `{{SLICE_CONTEXT}}`), wait for `COMPLETE`. On success: post the `RALPH:` commit SHA as evidence, close sub-issue, notify parent. On failure: reopen sub-issue, re-add `grilling-needed`, post what blocked RALPH, wait for new resume trigger.
 
-1. Update the corresponding slice in ISSUES-issue-`<parent-issue-number>`.md from HITL to AFK.
-2. Extract the slice name from the sub-issue title (`[Slice] <slice-name> (issue #<N>)`).
-3. Run RALPH for that slice only: `npm run ralph -- <parent-issue-number> "<parent-issue-title>" <branch> "<slice-name>"`
-4. Post a comment on the sub-issue with the outcome, then close the sub-issue.
-5. Post a comment on the parent issue noting the slice is complete.
-6. If all slices are now AFK and done, update the draft PR description to reflect full completion.
+If all slices are done: update the draft PR description to reflect full completion.

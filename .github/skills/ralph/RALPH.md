@@ -1,14 +1,14 @@
 # RALPH Implementation Prompt
 
-Fix issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}
+Fix issue: {{ISSUE_TITLE}}
 
-Pull in the issue using `gh issue view`, with comments. If it has a parent PRD, pull that in too.
+The task content is pre-loaded in `## TASK` below. `{{ISSUE_FILE}}` is the path to that local file — use it only to check off acceptance criteria as each is met. If the file has a `## Parent` section referencing a local PRD, read that file too.
 
 Only work on the issue specified.
 
-Work on branch {{BRANCH}}. Make commits, run tests, and close the issue when done.
+Work on branch {{BRANCH}}. Make commits and run tests when done.
 
-## PRIOR RESEARCH
+## TASK
 
 {{SLICE_CONTEXT}}
 
@@ -53,9 +53,9 @@ Keep it concise.
 
 ## THE ISSUE
 
-If the task is not complete, leave a comment on the GitHub issue with what was done.
+If the task is not complete, add a note to the local issue file (`{{ISSUE_FILE}}`) describing what was done and what remains.
 
-Do not close the issue - this will be done later.
+Do not remove the acceptance criteria checkboxes — check them off as each criterion is met.
 
 Once complete, output `COMPLETE`.
 
