@@ -32,6 +32,64 @@
     }
   </section>
 
+  <!-- 1-Rep Max Estimator -->
+  <section aria-labelledby="one-rm-heading">
+    <h2 id="one-rm-heading" class="text-lg font-semibold text-gray-200 mb-3">1-Rep Max Estimator</h2>
+    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+      <p class="text-gray-400 text-sm mb-4">Estimate your one-rep max using the Epley formula: <em>1RM = weight × (1 + reps / 30)</em></p>
+      <form [formGroup]="oneRmForm" (ngSubmit)="calculateOneRm()" class="flex flex-wrap gap-3 items-end" novalidate>
+        <div class="flex flex-col gap-1">
+          <label for="orm-weight" class="text-sm text-gray-400">Weight (kg)</label>
+          <input
+            id="orm-weight"
+            type="number"
+            formControlName="weight"
+            min="0.1"
+            step="0.5"
+            placeholder="e.g. 100"
+            class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white w-36 focus:outline-none focus:border-indigo-500"
+            [class.border-red-500]="oneRmForm.controls.weight.invalid && oneRmForm.controls.weight.touched"
+            aria-required="true"
+          />
+          @if (oneRmForm.controls.weight.invalid && oneRmForm.controls.weight.touched) {
+            <span class="text-red-400 text-xs" role="alert">Enter a weight above 0</span>
+          }
+        </div>
+        <div class="flex flex-col gap-1">
+          <label for="orm-reps" class="text-sm text-gray-400">Reps (1–36)</label>
+          <input
+            id="orm-reps"
+            type="number"
+            formControlName="reps"
+            min="1"
+            max="36"
+            step="1"
+            placeholder="e.g. 5"
+            class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white w-28 focus:outline-none focus:border-indigo-500"
+            [class.border-red-500]="oneRmForm.controls.reps.invalid && oneRmForm.controls.reps.touched"
+            aria-required="true"
+          />
+          @if (oneRmForm.controls.reps.invalid && oneRmForm.controls.reps.touched) {
+            <span class="text-red-400 text-xs" role="alert">Enter reps between 1 and 36</span>
+          }
+        </div>
+        <button
+          type="submit"
+          [disabled]="oneRmForm.invalid"
+          class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg px-5 py-2 transition-colors"
+        >
+          Calculate
+        </button>
+      </form>
+      @if (oneRmResult() !== null) {
+        <div class="mt-5 p-4 bg-gray-800 rounded-xl border border-indigo-700 flex items-center gap-3" role="status" aria-live="polite">
+          <span class="text-gray-300 text-sm">Estimated 1RM:</span>
+          <span class="text-indigo-400 text-2xl font-bold">{{ oneRmResult() }} kg</span>
+        </div>
+      }
+    </div>
+  </section>
+
   <!-- Progress Chart -->
   <section>
     <h2 class="text-lg font-semibold text-gray-200 mb-3">Progress Chart</h2>

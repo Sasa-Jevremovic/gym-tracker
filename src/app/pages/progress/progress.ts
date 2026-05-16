@@ -1,5 +1,5 @@
 import { Component, inject, signal, computed, effect, ElementRef, viewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { WorkoutService } from '../../services/workout';
 import { ExerciseService } from '../../services/exercise';
 import { DatePipe } from '@angular/common';
@@ -9,13 +9,14 @@ Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryS
 
 @Component({
   selector: 'app-progress',
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, ReactiveFormsModule, DatePipe],
   templateUrl: './progress.html',
   styleUrl: './progress.scss',
 })
 export class Progress {
   private readonly workoutService = inject(WorkoutService);
   private readonly exerciseService = inject(ExerciseService);
+  private readonly fb = inject(FormBuilder);
 
   readonly exercises = this.exerciseService.exercises;
   readonly personalRecords = this.workoutService.personalRecords;
@@ -25,6 +26,29 @@ export class Progress {
   readonly chartCanvas = viewChild<ElementRef<HTMLCanvasElement>>('chartCanvas');
 
   readonly chartData = this.workoutService.progressForExercise(this.selectedExerciseId);
+
+  readonly oneRmForm = this.fb.group({
+    weight: [null as number | null, [Validators.required, Validators.min(0.1)]],
+    reps: [null as number | null, [Validators.required, Validators.min(1), Validators.max(36)]],
+  });
+
+  readonly oneRmWeight = signal<number | null>(null);
+  readonly oneRmReps = signal<number | null>(null);
+
+  readonly oneRmResult = computed(() => {
+    const w = this.oneRmWeight();
+    const r = this.oneRmReps();
+    if (w === null || r === null || w <= 0 || r < 1) return null;
+    if (r === 1) return w;
+    return Math.round(w * (1 + r / 30) * 10) / 10;
+  });
+
+  calculateOneRm(): void {
+    if (this.oneRmForm.invalid) return;
+    const { weight, reps } = this.oneRmForm.value;
+    this.oneRmWeight.set(weight ?? null);
+    this.oneRmReps.set(reps ?? null);
+  }
 
   constructor() {
     effect(() => {
