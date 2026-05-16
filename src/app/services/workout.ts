@@ -26,6 +26,10 @@ export class WorkoutService {
 
   readonly recentWorkouts = computed(() => this.sortedWorkouts().slice(0, 5));
 
+  readonly currentStreak = computed(() => this.calcCurrentStreak(this._workouts()));
+
+  readonly longestStreak = computed(() => this.calcLongestStreak(this._workouts()));
+
   readonly personalRecords = computed((): PersonalRecord[] => {
     const prs: Record<string, { weightKg: number; date: string; exerciseName: string }> = {};
     for (const workout of this._workouts()) {
@@ -62,6 +66,57 @@ export class WorkoutService {
         })
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     });
+  }
+
+  private uniqueWorkoutDays(workouts: Workout[]): string[] {
+    const days = new Set(workouts.map(w => w.date.slice(0, 10)));
+    return [...days].sort();
+  }
+
+  private calcCurrentStreak(workouts: Workout[]): number {
+    const days = this.uniqueWorkoutDays(workouts);
+    if (days.length === 0) return 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().slice(0, 10);
+    const yesterdayStr = new Date(today.getTime() - 86400000).toISOString().slice(0, 10);
+
+    const lastDay = days[days.length - 1];
+    if (lastDay !== todayStr && lastDay !== yesterdayStr) return 0;
+
+    let streak = 1;
+    let cursor = new Date(lastDay);
+    for (let i = days.length - 2; i >= 0; i--) {
+      const prev = new Date(cursor.getTime() - 86400000).toISOString().slice(0, 10);
+      if (days[i] === prev) {
+        streak++;
+        cursor = new Date(days[i]);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  private calcLongestStreak(workouts: Workout[]): number {
+    const days = this.uniqueWorkoutDays(workouts);
+    if (days.length === 0) return 0;
+
+    let longest = 1;
+    let current = 1;
+    for (let i = 1; i < days.length; i++) {
+      const prev = new Date(days[i - 1]);
+      const curr = new Date(days[i]);
+      const diff = (curr.getTime() - prev.getTime()) / 86400000;
+      if (diff === 1) {
+        current++;
+        if (current > longest) longest = current;
+      } else {
+        current = 1;
+      }
+    }
+    return longest;
   }
 
   private load(): Workout[] {

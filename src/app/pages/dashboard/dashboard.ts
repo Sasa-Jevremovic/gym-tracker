@@ -14,6 +14,8 @@ export class Dashboard {
 
   readonly recentWorkouts = this.workoutService.recentWorkouts;
   readonly totalWorkouts = computed(() => this.workoutService.workouts().length);
+  readonly currentStreak = this.workoutService.currentStreak;
+  readonly longestStreak = this.workoutService.longestStreak;
   readonly personalRecords = computed(() =>
     [...this.workoutService.personalRecords()]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
