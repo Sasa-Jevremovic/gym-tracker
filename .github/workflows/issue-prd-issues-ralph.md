@@ -46,8 +46,11 @@ safe-outputs:
   add-comment:
     max: 20
   create-pull-request:
-    title-prefix: '[AI-Agent] '
+    title-prefix: '[AI-Agent]: '
     labels: [automation, automated, ready-for-review]
+    allowed-files:
+      - package-lock.json
+      - package.json
     draft: true
     protected-files: fallback-to-issue
 ---
