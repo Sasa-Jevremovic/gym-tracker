@@ -1,0 +1,64 @@
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-white">Dashboard</h1>
+    <a routerLink="/log" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+      + Log Workout
+    </a>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 gap-4">
+    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+      <p class="text-gray-400 text-sm">Total Workouts</p>
+      <p class="text-3xl font-bold text-indigo-400 mt-1">{{ totalWorkouts() }}</p>
+    </div>
+    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+      <p class="text-gray-400 text-sm">Personal Records</p>
+      <p class="text-3xl font-bold text-indigo-400 mt-1">{{ personalRecords().length }}</p>
+    </div>
+  </div>
+
+  <!-- Recent Workouts -->
+  <section>
+    <h2 class="text-lg font-semibold text-gray-200 mb-3">Recent Workouts</h2>
+    @if (recentWorkouts().length === 0) {
+      <div class="bg-gray-900 rounded-xl p-6 border border-gray-800 text-center">
+        <p class="text-gray-500">No workouts yet.</p>
+        <a routerLink="/log" class="text-indigo-400 hover:text-indigo-300 text-sm mt-2 inline-block">Log your first workout →</a>
+      </div>
+    } @else {
+      <div class="space-y-3">
+        @for (workout of recentWorkouts(); track workout.id) {
+          <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-white">{{ workout.date | date:'MMM d, y' }}</span>
+              <span class="text-gray-400 text-sm">{{ workout.exercises.length }} exercise(s)</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              @for (ex of workout.exercises; track ex.exerciseId) {
+                <span class="bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded">{{ ex.exerciseName }}</span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- Top PRs -->
+  <section>
+    <h2 class="text-lg font-semibold text-gray-200 mb-3">Top Personal Records</h2>
+    @if (personalRecords().length === 0) {
+      <p class="text-gray-500 text-sm">No records yet. Start logging workouts!</p>
+    } @else {
+      <div class="space-y-2">
+        @for (pr of personalRecords(); track pr.exerciseName) {
+          <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 flex items-center justify-between">
+            <span class="font-medium text-white">{{ pr.exerciseName }}</span>
+            <span class="text-indigo-400 font-bold">{{ pr.weightKg }} kg</span>
+          </div>
+        }
+      </div>
+    }
+  </section>
+</div>

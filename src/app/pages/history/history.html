@@ -1,0 +1,45 @@
+<div class="space-y-4">
+  <h1 class="text-2xl font-bold text-white">Workout History</h1>
+
+  @if (sortedWorkouts().length === 0) {
+    <div class="bg-gray-900 rounded-xl p-8 border border-gray-800 text-center">
+      <p class="text-gray-500">No workouts logged yet.</p>
+    </div>
+  } @else {
+    @for (workout of sortedWorkouts(); track workout.id) {
+      <div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <button (click)="toggle(workout.id)" class="w-full flex items-center justify-between p-4 text-left hover:bg-gray-800 transition-colors">
+          <div>
+            <span class="font-semibold text-white">{{ workout.date | date:'EEEE, MMM d, y' }}</span>
+            <span class="text-gray-400 text-sm ml-3">{{ workout.exercises.length }} exercise(s)</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <button (click)="deleteWorkout(workout.id, $event)" class="text-red-400 hover:text-red-300 text-sm transition-colors px-2 py-1">Delete</button>
+            <svg [class.rotate-180]="expandedWorkoutId() === workout.id" class="w-4 h-4 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+        </button>
+
+        @if (expandedWorkoutId() === workout.id) {
+          <div class="px-4 pb-4 border-t border-gray-800 pt-3 space-y-3">
+            @if (workout.notes) {
+              <p class="text-gray-400 text-sm italic">"{{ workout.notes }}"</p>
+            }
+            @for (ex of workout.exercises; track ex.exerciseId) {
+              <div>
+                <h4 class="font-medium text-indigo-300 mb-1">{{ ex.exerciseName }}</h4>
+                <div class="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-1"><span>Set</span><span>Reps</span><span>Weight</span></div>
+                @for (set of ex.sets; track $index) {
+                  <div class="grid grid-cols-3 gap-2 text-sm text-gray-300">
+                    <span>{{ $index + 1 }}</span>
+                    <span>{{ set.reps }}</span>
+                    <span>{{ set.weightKg }} kg</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  }
+</div>
