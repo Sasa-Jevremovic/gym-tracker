@@ -14,7 +14,7 @@ on:
 engine: copilot
 strict: false
 
-timeout-minutes: 90
+timeout-minutes: 10
 
 permissions:
   contents: read
