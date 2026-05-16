@@ -1,4 +1,4 @@
-import { Component, inject, computed, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { WorkoutService } from '../../services/workout';
 
@@ -11,11 +11,7 @@ import { WorkoutService } from '../../services/workout';
 export class History {
   private readonly workoutService = inject(WorkoutService);
 
-  readonly sortedWorkouts = computed(() =>
-    [...this.workoutService.workouts()].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    )
-  );
+  readonly sortedWorkouts = this.workoutService.sortedWorkouts;
 
   expandedWorkoutId = signal<string | null>(null);
 

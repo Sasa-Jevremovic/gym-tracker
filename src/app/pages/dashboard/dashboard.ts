@@ -14,8 +14,9 @@ export class Dashboard {
 
   readonly recentWorkouts = this.workoutService.recentWorkouts;
   readonly totalWorkouts = computed(() => this.workoutService.workouts().length);
-  readonly personalRecords = computed(() => {
-    const prs = this.workoutService.getPersonalRecords();
-    return Object.values(prs).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
-  });
+  readonly personalRecords = computed(() =>
+    [...this.workoutService.personalRecords()]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5)
+  );
 }

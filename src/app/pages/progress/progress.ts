@@ -18,20 +18,13 @@ export class Progress {
   private readonly exerciseService = inject(ExerciseService);
 
   readonly exercises = this.exerciseService.exercises;
-  readonly personalRecords = computed(() => {
-    const prs = this.workoutService.getPersonalRecords();
-    return Object.entries(prs).map(([id, pr]) => ({ id, ...pr }));
-  });
+  readonly personalRecords = this.workoutService.personalRecords;
 
   selectedExerciseId = signal('');
   private chart: Chart | null = null;
   readonly chartCanvas = viewChild<ElementRef<HTMLCanvasElement>>('chartCanvas');
 
-  readonly chartData = computed(() => {
-    const id = this.selectedExerciseId();
-    if (!id) return null;
-    return this.workoutService.getProgressForExercise(id);
-  });
+  readonly chartData = this.workoutService.progressForExercise(this.selectedExerciseId);
 
   constructor() {
     effect(() => {

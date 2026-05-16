@@ -1,5 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Exercise } from '../models/exercise';
+import { STORAGE_ADAPTER } from './storage-adapter';
 
 const DEFAULT_EXERCISES: Exercise[] = [
   { id: 'bench-press', name: 'Bench Press', category: 'Chest', isCustom: false },
@@ -22,12 +23,12 @@ const STORAGE_KEY = 'gymtracker_exercises';
   providedIn: 'root',
 })
 export class ExerciseService {
+  private readonly storage = inject(STORAGE_ADAPTER);
   private readonly _exercises = signal<Exercise[]>(this.load());
   readonly exercises = this._exercises.asReadonly();
 
   private load(): Exercise[] {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const custom: Exercise[] = stored ? JSON.parse(stored) : [];
+    const custom = this.storage.get<Exercise[]>(STORAGE_KEY) ?? [];
     return [...DEFAULT_EXERCISES, ...custom];
   }
 
@@ -40,14 +41,12 @@ export class ExerciseService {
     };
     const updated = [...this._exercises(), newExercise];
     this._exercises.set(updated);
-    const custom = updated.filter(e => e.isCustom);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(custom));
+    this.storage.set(STORAGE_KEY, updated.filter(e => e.isCustom));
   }
 
   deleteCustomExercise(id: string): void {
     const updated = this._exercises().filter(e => e.id !== id);
     this._exercises.set(updated);
-    const custom = updated.filter(e => e.isCustom);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(custom));
+    this.storage.set(STORAGE_KEY, updated.filter(e => e.isCustom));
   }
 }
