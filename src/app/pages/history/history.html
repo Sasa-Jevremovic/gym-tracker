@@ -1,45 +1,204 @@
 <div class="space-y-4">
-  <h1 class="text-2xl font-bold text-white">Workout History</h1>
+  <h1 class="text-2xl font-bold text-white">History</h1>
 
-  @if (sortedWorkouts().length === 0) {
-    <div class="bg-gray-900 rounded-xl p-8 border border-gray-800 text-center">
-      <p class="text-gray-500">No workouts logged yet.</p>
-    </div>
-  } @else {
-    @for (workout of sortedWorkouts(); track workout.id) {
-      <div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-        <button (click)="toggle(workout.id)" class="w-full flex items-center justify-between p-4 text-left hover:bg-gray-800 transition-colors">
-          <div>
-            <span class="font-semibold text-white">{{ workout.date | date:'EEEE, MMM d, y' }}</span>
-            <span class="text-gray-400 text-sm ml-3">{{ workout.exercises.length }} exercise(s)</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <button (click)="deleteWorkout(workout.id, $event)" class="text-red-400 hover:text-red-300 text-sm transition-colors px-2 py-1">Delete</button>
-            <svg [class.rotate-180]="expandedWorkoutId() === workout.id" class="w-4 h-4 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-          </div>
-        </button>
+  <!-- Tabs -->
+  <div class="flex gap-2 border-b border-gray-800" role="tablist">
+    <button
+      role="tab"
+      [attr.aria-selected]="activeTab() === 'workouts'"
+      [class]="activeTab() === 'workouts'
+        ? 'px-4 py-2 text-white font-semibold border-b-2 border-indigo-500 -mb-px'
+        : 'px-4 py-2 text-gray-400 hover:text-gray-200 transition-colors'"
+      (click)="activeTab.set('workouts')"
+    >
+      Workouts
+    </button>
+    <button
+      role="tab"
+      [attr.aria-selected]="activeTab() === 'templates'"
+      [class]="activeTab() === 'templates'
+        ? 'px-4 py-2 text-white font-semibold border-b-2 border-indigo-500 -mb-px'
+        : 'px-4 py-2 text-gray-400 hover:text-gray-200 transition-colors'"
+      (click)="activeTab.set('templates')"
+    >
+      Templates
+      @if (templates().length > 0) {
+        <span class="ml-1 text-xs bg-indigo-700 text-white rounded-full px-1.5 py-0.5">{{ templates().length }}</span>
+      }
+    </button>
+  </div>
 
-        @if (expandedWorkoutId() === workout.id) {
-          <div class="px-4 pb-4 border-t border-gray-800 pt-3 space-y-3">
-            @if (workout.notes) {
-              <p class="text-gray-400 text-sm italic">"{{ workout.notes }}"</p>
-            }
-            @for (ex of workout.exercises; track ex.exerciseId) {
-              <div>
-                <h4 class="font-medium text-indigo-300 mb-1">{{ ex.exerciseName }}</h4>
-                <div class="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-1"><span>Set</span><span>Reps</span><span>Weight</span></div>
-                @for (set of ex.sets; track $index) {
-                  <div class="grid grid-cols-3 gap-2 text-sm text-gray-300">
-                    <span>{{ $index + 1 }}</span>
-                    <span>{{ set.reps }}</span>
-                    <span>{{ set.weightKg }} kg</span>
-                  </div>
-                }
-              </div>
-            }
-          </div>
-        }
+  <!-- Workouts Tab -->
+  @if (activeTab() === 'workouts') {
+    @if (sortedWorkouts().length === 0) {
+      <div class="bg-gray-900 rounded-xl p-8 border border-gray-800 text-center">
+        <p class="text-gray-500">No workouts logged yet.</p>
       </div>
+    } @else {
+      @for (workout of sortedWorkouts(); track workout.id) {
+        <div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <button
+            (click)="toggle(workout.id)"
+            class="w-full flex items-center justify-between p-4 text-left hover:bg-gray-800 transition-colors"
+            [attr.aria-expanded]="expandedWorkoutId() === workout.id"
+          >
+            <div>
+              <span class="font-semibold text-white">{{ workout.date | date:'EEEE, MMM d, y' }}</span>
+              <span class="text-gray-400 text-sm ml-3">{{ workout.exercises.length }} exercise(s)</span>
+              @if (workout.split) {
+                <span class="text-indigo-400 text-sm ml-2">· {{ workout.split }}</span>
+              }
+            </div>
+            <div class="flex items-center gap-3">
+              <button
+                (click)="startSaveAsTemplate(workout.id, $event)"
+                aria-label="Save this workout as a template"
+                class="text-indigo-400 hover:text-indigo-300 text-sm transition-colors px-2 py-1"
+              >
+                Save as Template
+              </button>
+              <button
+                (click)="deleteWorkout(workout.id, $event)"
+                aria-label="Delete this workout"
+                class="text-red-400 hover:text-red-300 text-sm transition-colors px-2 py-1"
+              >
+                Delete
+              </button>
+              <svg
+                [class.rotate-180]="expandedWorkoutId() === workout.id"
+                class="w-4 h-4 text-gray-400 transition-transform"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </div>
+          </button>
+
+          <!-- Save as Template Form -->
+          @if (savingTemplateForWorkoutId() === workout.id) {
+            <div class="px-4 pb-4 border-t border-gray-700 pt-3 bg-gray-800">
+              <label [for]="'template-name-' + workout.id" class="block text-sm text-gray-300 mb-2 font-medium">Template name</label>
+              <div class="flex gap-2">
+                <input
+                  [id]="'template-name-' + workout.id"
+                  type="text"
+                  [value]="newTemplateName()"
+                  (input)="newTemplateName.set($any($event.target).value); templateNameError.set('')"
+                  placeholder="e.g. Upper Body A"
+                  class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                />
+                <button
+                  (click)="confirmSaveAsTemplate(workout.id)"
+                  class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                >
+                  Save
+                </button>
+                <button
+                  (click)="cancelSaveAsTemplate()"
+                  class="text-gray-400 hover:text-gray-200 px-3 py-2 text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+              @if (templateNameError()) {
+                <p class="text-red-400 text-sm mt-1" role="alert">{{ templateNameError() }}</p>
+              }
+            </div>
+          }
+
+          @if (expandedWorkoutId() === workout.id) {
+            <div class="px-4 pb-4 border-t border-gray-800 pt-3 space-y-3">
+              @if (workout.notes) {
+                <p class="text-gray-400 text-sm italic">"{{ workout.notes }}"</p>
+              }
+              @for (ex of workout.exercises; track ex.exerciseId) {
+                <div>
+                  <h4 class="font-medium text-indigo-300 mb-1">{{ ex.exerciseName }}</h4>
+                  <div class="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-1"><span>Set</span><span>Reps</span><span>Weight</span></div>
+                  @for (set of ex.sets; track $index) {
+                    <div class="grid grid-cols-3 gap-2 text-sm text-gray-300">
+                      <span>{{ $index + 1 }}</span>
+                      <span>{{ set.reps }}</span>
+                      <span>{{ set.weightKg }} kg</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    }
+  }
+
+  <!-- Templates Tab -->
+  @if (activeTab() === 'templates') {
+    @if (templates().length === 0) {
+      <div class="bg-gray-900 rounded-xl p-8 border border-gray-800 text-center">
+        <p class="text-gray-500">No templates saved yet.</p>
+        <p class="text-gray-600 text-sm mt-2">Open a completed workout and click "Save as Template" to create one.</p>
+      </div>
+    } @else {
+      @for (template of templates(); track template.id) {
+        <div class="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-2">
+          @if (renamingTemplateId() === template.id) {
+            <!-- Rename form -->
+            <div>
+              <label [for]="'rename-' + template.id" class="sr-only">Template name</label>
+              <div class="flex gap-2">
+                <input
+                  [id]="'rename-' + template.id"
+                  type="text"
+                  [value]="renameValue()"
+                  (input)="renameValue.set($any($event.target).value); renameError.set('')"
+                  class="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                  (keydown.enter)="confirmRename(template.id)"
+                  (keydown.escape)="cancelRename()"
+                />
+                <button
+                  (click)="confirmRename(template.id)"
+                  class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                >
+                  Save
+                </button>
+                <button
+                  (click)="cancelRename()"
+                  class="text-gray-400 hover:text-gray-200 px-3 py-2 text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+              @if (renameError()) {
+                <p class="text-red-400 text-sm mt-1" role="alert">{{ renameError() }}</p>
+              }
+            </div>
+          } @else {
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <p class="font-semibold text-white">{{ template.name }}</p>
+                <p class="text-gray-500 text-sm">{{ template.exercises.length }} exercise(s)</p>
+              </div>
+              <div class="flex gap-2 shrink-0">
+                <button
+                  (click)="startRename(template.id, template.name)"
+                  [attr.aria-label]="'Rename template ' + template.name"
+                  class="text-indigo-400 hover:text-indigo-300 text-sm transition-colors px-2 py-1"
+                >
+                  Rename
+                </button>
+                <button
+                  (click)="deleteTemplate(template.id)"
+                  [attr.aria-label]="'Delete template ' + template.name"
+                  class="text-red-400 hover:text-red-300 text-sm transition-colors px-2 py-1"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
     }
   }
 </div>

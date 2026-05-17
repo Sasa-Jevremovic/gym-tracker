@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { vi } from 'vitest';
 import { ExerciseService } from '../../services/exercise';
 import { WorkoutService } from '../../services/workout';
+import { WorkoutTemplateService } from '../../services/workout-template';
 import { LogWorkout } from './log-workout';
 
 describe('LogWorkout - Split Selection', () => {
@@ -18,6 +19,7 @@ describe('LogWorkout - Split Selection', () => {
       providers: [
         WorkoutService,
         ExerciseService,
+        WorkoutTemplateService,
         {
           provide: Router,
           useValue: { navigate: vi.fn() },
@@ -120,6 +122,130 @@ describe('LogWorkout - Split Selection', () => {
       ]);
 
       expect(component.canSave).toBe(true);
+    });
+  });
+
+  describe('Template loading (WT-2)', () => {
+    it('loads a template into the draft', () => {
+      const templateService = TestBed.inject(WorkoutTemplateService);
+      const workout = workoutService.addWorkout({
+        date: '2025-01-01',
+        notes: '',
+        exercises: [
+          {
+            exerciseId: 'squat',
+            exerciseName: 'Squat',
+            sets: [{ reps: 5, weightKg: 100 }],
+          },
+        ],
+      });
+      templateService.createFromWorkout(workout, 'Leg Day');
+      const template = templateService.templates()[0];
+
+      component.selectedTemplateId.set(template.id);
+      component.loadTemplate();
+
+      const exercises = component.workoutExercises();
+      expect(exercises).toHaveLength(1);
+      expect(exercises[0].exerciseId).toBe('squat');
+    });
+
+    it('resets weights to zero when loading from template', () => {
+      const templateService = TestBed.inject(WorkoutTemplateService);
+      const workout = workoutService.addWorkout({
+        date: '2025-01-01',
+        notes: '',
+        exercises: [
+          {
+            exerciseId: 'deadlift',
+            exerciseName: 'Deadlift',
+            sets: [{ reps: 5, weightKg: 150 }],
+          },
+        ],
+      });
+      templateService.createFromWorkout(workout, 'Pull Day');
+      const template = templateService.templates()[0];
+
+      component.selectedTemplateId.set(template.id);
+      component.loadTemplate();
+
+      expect(component.workoutExercises()[0].sets[0].weightKg).toBe(0);
+    });
+
+    it('preserves reps defaults from template', () => {
+      const templateService = TestBed.inject(WorkoutTemplateService);
+      const workout = workoutService.addWorkout({
+        date: '2025-01-01',
+        notes: '',
+        exercises: [
+          {
+            exerciseId: 'bench-press',
+            exerciseName: 'Bench Press',
+            sets: [{ reps: 8, weightKg: 80 }, { reps: 6, weightKg: 90 }],
+          },
+        ],
+      });
+      templateService.createFromWorkout(workout, 'Upper Day');
+      const template = templateService.templates()[0];
+
+      component.selectedTemplateId.set(template.id);
+      component.loadTemplate();
+
+      const sets = component.workoutExercises()[0].sets;
+      expect(sets[0].reps).toBe(8);
+      expect(sets[1].reps).toBe(6);
+    });
+
+    it('allows saving the workout after loading a template', () => {
+      const templateService = TestBed.inject(WorkoutTemplateService);
+      const workout = workoutService.addWorkout({
+        date: '2025-01-01',
+        notes: '',
+        exercises: [
+          {
+            exerciseId: 'squat',
+            exerciseName: 'Squat',
+            sets: [{ reps: 5, weightKg: 100 }],
+          },
+        ],
+      });
+      templateService.createFromWorkout(workout, 'Leg Day');
+      const template = templateService.templates()[0];
+
+      component.selectedTemplateId.set(template.id);
+      component.loadTemplate();
+
+      // Edit the draft - add weight
+      component.draft.updateSet('squat', 0, 'weightKg', 120);
+      component.saveWorkout();
+
+      const saved = workoutService.workouts().find(w => w.date === component.date);
+      expect(saved).toBeDefined();
+      expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
+    });
+
+    it('does not mutate the saved template when loading', () => {
+      const templateService = TestBed.inject(WorkoutTemplateService);
+      const workout = workoutService.addWorkout({
+        date: '2025-01-01',
+        notes: '',
+        exercises: [
+          {
+            exerciseId: 'squat',
+            exerciseName: 'Squat',
+            sets: [{ reps: 5, weightKg: 100 }],
+          },
+        ],
+      });
+      templateService.createFromWorkout(workout, 'Leg Day');
+      const template = templateService.templates()[0];
+
+      component.selectedTemplateId.set(template.id);
+      component.loadTemplate();
+      component.draft.updateSet('squat', 0, 'weightKg', 999);
+
+      // Template should still have original reps, no weight
+      expect(templateService.templates()[0].exercises[0].sets[0]).toEqual({ reps: 5 });
     });
   });
 });

@@ -2,6 +2,7 @@ import { computed, signal } from '@angular/core';
 import { WorkoutExercise } from '../models/workout';
 import { WorkoutSet } from '../models/set';
 import { Exercise } from '../models/exercise';
+import { WorkoutTemplate } from '../models/workout-template';
 
 /**
  * Owns the mutable state of a workout being composed by the user.
@@ -55,6 +56,20 @@ export class WorkoutDraft {
           ? { ...w, sets: w.sets.map((s, i) => (i === setIndex ? { ...s, [field]: value } : s)) }
           : w
       )
+    );
+  }
+
+  /**
+   * Replaces the current draft with exercises from the given template.
+   * Default reps are preserved; all weights are reset to zero for the new session.
+   */
+  loadFromTemplate(template: WorkoutTemplate): void {
+    this.exercises.set(
+      template.exercises.map(ex => ({
+        exerciseId: ex.exerciseId,
+        exerciseName: ex.exerciseName,
+        sets: ex.sets.map(s => ({ reps: s.reps, weightKg: 0 })),
+      }))
     );
   }
 }
