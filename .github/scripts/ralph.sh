@@ -6,6 +6,7 @@ ISSUE_NUMBER="${1:?Usage: ralph.sh <issue-number> <issue-title> <branch> [slice-
 ISSUE_TITLE="${2:?Usage: ralph.sh <issue-number> <issue-title> <branch> [slice-name]}"
 BRANCH="${3:?Usage: ralph.sh <issue-number> <issue-title> <branch> [slice-name]}"
 SLICE_FILTER="${4:-}"
+MAX_AUTOPILOT_CONTINUES="${RALPH_MAX_AUTOPILOT_CONTINUES:-4}"
 
 ISSUE_FILE="ISSUES-issue-${ISSUE_NUMBER}.md"
 RALPH=".github/skills/ralph/RALPH.md"
@@ -43,7 +44,10 @@ with open(issues_path) as f:
     issues = f.read()
 
 m = re.search(rf'^## {re.escape(env["SLICE"])}\s*\n(.*?)(?=^## |\Z)', issues, re.M | re.S)
-env["SLICE_CONTEXT"] = f"## {env['SLICE']}\n{m.group(1).rstrip()}" if m else issues
+if not m:
+  raise SystemExit(f"Error: slice '{env['SLICE']}' not found in {issues_path}")
+
+env["SLICE_CONTEXT"] = f"## {env['SLICE']}\n{m.group(1).rstrip()}"
 
 result = re.sub(r'\{\{(\w+)\}\}', lambda m: env.get(m.group(1), m.group(0)), template)
 
@@ -51,7 +55,7 @@ with open(out_path, 'w') as f:
     f.write(result)
 PY
 
-  output=$(copilot --autopilot --yolo --max-autopilot-continues 10 -p "@file:${tmp}" 2>&1)
+  output=$(copilot --autopilot --yolo --max-autopilot-continues "$MAX_AUTOPILOT_CONTINUES" -p "@file:${tmp}" 2>&1)
   rm -f "$tmp"
   echo "$output"
 

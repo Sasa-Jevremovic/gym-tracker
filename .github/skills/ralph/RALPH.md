@@ -2,7 +2,7 @@
 
 Fix issue: {{ISSUE_TITLE}}
 
-The task content is pre-loaded in `## TASK` below. `{{ISSUE_FILE}}` is the path to that local file — use it only to check off acceptance criteria as each is met. If the file has a `## Parent` section referencing a local PRD, read that file too.
+The task content is pre-loaded in `## TASK` below. `{{ISSUE_FILE}}` is the local issue file when provided; use it only to check off acceptance criteria. If that file has a `## Parent` section referencing a local PRD, read that PRD too.
 
 Only work on the issue specified.
 
@@ -12,32 +12,22 @@ Work on branch {{BRANCH}}. Make commits and run tests when done.
 
 {{SLICE_CONTEXT}}
 
-## CONTEXT
-
-Here are the last 10 commits:
-
-```sh
-!`git log -n 10 --format="%H%n%ad%n%B---" --date=short`
-```
-
 ## EXPLORATION
 
-Explore the repo and fill your context window with relevant information that will allow you to complete the task.
-
-Pay extra attention to test files that touch the relevant parts of the code.
+Read only the files needed for this task. Start from the most direct implementation surface, then check nearby tests or call sites if needed.
 
 ## EXECUTION
 
-If applicable, use RGR (Red-Green-Refactor) to complete the task.
+Use RGR (Red-Green-Refactor) when practical.
 
-1. RED: write one test
-2. GREEN: write the implementation to pass that test
+1. RED: add one focused failing test when behavior changes
+2. GREEN: implement the smallest fix
 3. REPEAT until done
-4. REFACTOR the code
+4. REFACTOR only within scope
 
 ## FEEDBACK LOOPS
 
-Before committing, run `npm run test` to ensure the tests pass.
+Run the narrowest useful validation after each substantive change. Before committing, run `npm run test`.
 
 ## COMMIT
 
@@ -53,9 +43,9 @@ Keep it concise.
 
 ## THE ISSUE
 
-If the task is not complete, add a note to the local issue file (`{{ISSUE_FILE}}`) describing what was done and what remains.
+If `{{ISSUE_FILE}}` is provided and the task is not complete, add a short note describing what was done and what remains.
 
-Do not remove the acceptance criteria checkboxes — check them off as each criterion is met.
+Do not remove acceptance criteria checkboxes; check them off as each criterion is met.
 
 Once complete, output `COMPLETE`.
 
