@@ -1,10 +1,9 @@
 ---
-name: Auto-Implement Issues
+name: Issue Automate
 description: >-
   Listens for opened issues and auto-implements them AFK. Simple issues are
   implemented directly; complex issues go through PRD → tasks → implement.
   Ambiguous issues pause and post clarifying questions before proceeding.
-
 on:
   issues:
     types: [opened]
@@ -12,8 +11,6 @@ on:
   issue_comment:
     types: [created]
     lock-for-agent: true
-  reaction: eyes
-  status-comment: true
 
 engine: copilot
 strict: false
@@ -57,107 +54,52 @@ safe-outputs:
 
 # Issue Auto-Implement
 
-Handle issue #${{ github.event.issue.number }} in `${{ github.repository }}`.
-Branch: AFK/issue-${{ github.event.issue.number }}.
-Use the sanitized activation text as the primary source of truth.
+Vars: `N`=issue number, `BRANCH`=`AFK/issue-N`.
 
-## Context
+**Entry guard**:
 
-${{ steps.sanitized.outputs.text }}
-
-{{#if github.event.comment.id}}
-
-## Resume
-
-Triggered by a new comment.
-Re-evaluate the issue body and comment thread before resuming.
-{{/if}}
-
-## Rules
-
-- Be deterministic and keep the scope tight.
-- If the issue is ambiguous, ask one concise numbered question list, add `needs-human-input`, and stop.
-- Reuse existing PRD or tasks files if they already exist.
-- Keep labels consistent: never leave both `simple-task` and `complex-task` on the issue.
-- Do not finish until labels are correct and the issue has a draft PR link.
-
-## Skills
-
-Available skills:
-
-- PRD: `.github/skills/to-prd/SKILL.MD`
-- Tasks: `.github/skills/to-tasks/SKILL.MD`
-- Implement: `.github/skills/implement-prompt/SKILL.md`
-- Review: `.github/skills/review-prompt/SKILL.md`
-
-Skill contract:
-
-- Always pass the issue number, branch, sanitized context, and the current source-of-truth artifact.
-- Only ask a skill to handle one task at a time.
-- After a skill finishes, resume this workflow at the next step.
-- Review works on the current diff, preserves behavior, and only makes safe refinements. In the complex path it may also fix blocking review findings.
-
-## Entry Guard
-
-- `issues.opened` + label `afk` -> Section 2. Otherwise Section 1.
-- `issue_comment` + label `needs-human-input` -> Section 3. Otherwise noop.
+- `issues.opened` → if issue already has the `afk` label (manually set by human), skip to **Section 2**. Otherwise go to **Section 1**.
+- `issue_comment` → proceed only if the issue has `needs-human-input` label, else noop. → go to **Section 3**.
 
 ## 1. Ambiguity Check
 
-Ambiguous if acceptance criteria are missing, scope is unclear, expected output is unspecified, or the request conflicts with existing code or decisions without explanation.
+Read the issue title and description. Decide autonomously:
 
-- Clear -> add `afk`, then Section 2.
-- Ambiguous -> post numbered blocking questions, add `needs-human-input`, then stop.
-
-If `needs-human-input` is older than 7 days with no reply, post a blocked comment and stop.
+- **Clear enough to implement** (requirements are specific, scope is well-defined, no critical unknowns) → add label `afk` → go to **Section 2**.
+- **Too ambiguous** (missing key details, unclear scope, multiple valid interpretations that would lead to different implementations) → post **one comment** on the issue containing all blocking questions, grouped and numbered → add label `needs-human-input` → **stop**.
 
 ## 2. Classify & Branch
 
-Create `AFK/issue-${{ github.event.issue.number }}` from `main` if it does not exist.
+Create branch `BRANCH` from `main` (skip if exists).
 
-Classify as:
+Decide complexity based on the issue scope:
 
-- `Simple`: one narrow change, one area, no planning artifact needed.
-- `Complex`: multiple areas, ordered slices, or explicit planning needed.
+- **Simple** (single-concern, contained change, no PRD needed) → label `simple-task` → go to **Section 2A**.
+- **Complex** (multi-concern, touches multiple features or layers, needs a PRD, but may still be implementable directly from that PRD) → label `complex-task` → go to **Section 2B**.
 
-Normalize labels first:
+## 2A. Simple — Implement directly
 
-- `Simple` -> add `simple-task`, remove `complex-task`.
-- `Complex` -> add `complex-task`, remove `simple-task`.
+Run implement skill → run review skill → open draft PR, label `ready-for-review`, comment PR link on the issue.
 
-- Simple -> max continues 5, then Section 2A.
-- Complex -> max continues 20, then Section 2B.
+Implement: `.github/skills/implement-promt/SKILL.md`
+Review: `.github/skills/review-promt/SKILL.md`
 
-### 2A. Simple
+## 2B. Complex — PRD First, Tasks Only If Truly Needed
 
-1. Invoke the Implement skill with the issue itself as the source of truth.
-2. Tell it to finish the issue on the current branch and stop after implementation.
-3. Invoke the Review skill against the resulting diff.
-4. Then go to Section 2C.
+1. **PRD** (idempotent): `PRD-issue-N.md` absent → follow `.github/skills/to-prd/SKILL.MD`, commit to `BRANCH`.
+2. Default to implementing from `PRD-issue-N.md`. Create `tasks-issue-N.md` only if the PRD requires multiple vertical slices, explicit sequencing, or dependency tracking.
+3. **Tasks** (idempotent, conditional): only if step 2 requires task breakdown and `tasks-issue-N.md` is absent → follow `.github/skills/to-tasks/SKILL.MD`, commit to `BRANCH`.
+4. If `tasks-issue-N.md` exists, implement all tasks from that file in order using the implement skill, respecting `Blocked by` dependencies. Otherwise, implement directly from `PRD-issue-N.md` using the implement skill.
+5. Open draft PR, label `ready-for-review`, comment PR link on the issue.
 
-### 2B. Complex
+Implement: `.github/skills/implement-promt/SKILL.md`
+Review: `.github/skills/review-promt/SKILL.md`
 
-1. Use the PRD skill to create or update `PRD-issue-${{ github.event.issue.number }}.md` from the issue.
-2. Use the Tasks skill to create or update `tasks-issue-${{ github.event.issue.number }}.md` from the `PRD-issue-${{ github.event.issue.number }}.md`.
-3. Choose one unblocked task.
-4. Invoke the Implement skill with that task as the source of truth.
-5. Tell it to complete only that task, then stop.
-6. Repeat steps 3 to 5 until all tasks are complete.
-7. Invoke the Review skill against the final diff.
-8. Then go to Section 2C.
+## 3. Resume (issue_comment + needs-human-input)
 
-### 2C. Finalize
+A human has replied to the clarifying questions on the issue. Remove label `needs-human-input`.
 
-1. Open a draft PR.
-2. Add `ready-for-review`.
-3. Comment the draft PR link on the issue.
+Re-evaluate the issue title, description, and all comments (including the new answers):
 
-## 3. Resume
-
-Remove `needs-human-input`. Re-evaluate the issue and all comments.
-
-- If classification changes, remove the old `simple-task` or `complex-task` label before continuing.
-- Keep `afk` only if the issue is ready to continue automatically.
-
-- Still ambiguous -> post remaining questions, re-add `needs-human-input`, and stop.
-- Clear -> add `afk`, then Section 2.
+- **Still ambiguous** → post a follow-up comment with any remaining blocking questions → re-add `needs-human-input` → **stop**.
+- **Now clear** → add label `afk` → go to **Section 2**.
