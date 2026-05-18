@@ -19,6 +19,7 @@ export class Progress {
   private readonly fb = inject(FormBuilder);
 
   readonly exercises = this.exerciseService.exercises;
+  readonly sortedExercises = this.exerciseService.sortedExercises;
   readonly personalRecords = this.workoutService.personalRecords;
 
   selectedExerciseId = signal('');
