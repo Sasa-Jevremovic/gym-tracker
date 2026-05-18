@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>issue-automate — Developer Reference</title>
+    <!-- Mermaid -->
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ startOnLoad: true, theme: 'dark', themeVariables: { background: '#0d1117', primaryColor: '#1e293b', primaryTextColor: '#e2e8f0', lineColor: '#475569', edgeLabelBackground: '#0d1117' } });
+    </script>
+    <!-- Highlight.js (TypeScript) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
+    <script>document.addEventListener('DOMContentLoaded', () => hljs.highlightAll());</script>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --bg:       #0f172a;
+        --surface:  #1e293b;
+        --border:   rgba(255,255,255,0.08);
+        --text:     #e2e8f0;
+        --muted:    #94a3b8;
+        --violet:   #a78bfa;
+        --cyan:     #67e8f9;
+        --emerald:  #6ee7b7;
+        --rose:     #fda4af;
+        --amber:    #fcd34d;
+        --radius:   14px;
+        --mono:     'Fira Code', 'Cascadia Code', Consolas, monospace;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 15px;
+        line-height: 1.7;
+        padding: 2rem 1rem 4rem;
+      }
+
+      .page { max-width: 860px; margin: 0 auto; }
+
+      /* ── Header ── */
+      header {
+        text-align: center;
+        padding: 3rem 1rem 2.5rem;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 3rem;
+      }
+      header .badge {
+        display: inline-block;
+        font-size: 11px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--cyan);
+        background: rgba(103,232,249,.1);
+        border: 1px solid rgba(103,232,249,.2);
+        border-radius: 99px;
+        padding: 3px 14px;
+        margin-bottom: 1rem;
+      }
+      header h1 { font-size: 2.2rem; font-weight: 700; line-height: 1.2; }
+      header h1 span { color: var(--violet); }
+      header p { color: var(--muted); margin-top: .6rem; max-width: 520px; margin-inline: auto; }
+
+      /* ── Section headings ── */
+      h2 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--text);
+      }
+      h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .1em; margin-bottom: .5rem; }
+
+      /* ── Cards ── */
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.4rem 1.6rem;
+      }
+
+      /* ── Grid helpers ── */
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+      .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+      @media (max-width: 620px) {
+        .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      }
+
+      /* ── Section spacer ── */
+      section { margin-bottom: 2.8rem; }
+
+      /* ── Step pills ── */
+      .steps { display: flex; gap: 0; }
+      .step {
+        flex: 1;
+        padding: 1rem 1.2rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        position: relative;
+      }
+      .step:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+      .step:last-child  { border-radius: 0 var(--radius) var(--radius) 0; }
+      .step:not(:last-child)::after {
+        content: '→';
+        position: absolute;
+        right: -14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted);
+        font-size: 1.1rem;
+        z-index: 1;
+      }
+      .step .label { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 4px; }
+      .step .value { font-weight: 600; font-size: .95rem; }
+      @media (max-width: 620px) {
+        .steps { flex-direction: column; }
+        .step:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+        .step:last-child  { border-radius: 0 0 var(--radius) var(--radius); }
+        .step:not(:last-child)::after { content: '↓'; right: auto; left: 1.2rem; top: auto; bottom: -14px; }
+      }
+
+      /* ── Colour variants ── */
+      .violet { color: var(--violet); border-color: rgba(167,139,250,.25) !important; }
+      .cyan   { color: var(--cyan);   border-color: rgba(103,232,249,.25) !important; }
+      .emerald{ color: var(--emerald);border-color: rgba(110,231,183,.25) !important; }
+      .rose   { color: var(--rose);   border-color: rgba(253,164,175,.25) !important; }
+      .amber  { color: var(--amber);  border-color: rgba(252,211,77,.25)  !important; }
+
+      .tinted-violet { background: rgba(167,139,250,.08); border-color: rgba(167,139,250,.18) !important; }
+      .tinted-cyan   { background: rgba(103,232,249,.08); border-color: rgba(103,232,249,.18) !important; }
+      .tinted-emerald{ background: rgba(110,231,183,.08); border-color: rgba(110,231,183,.18) !important; }
+      .tinted-rose   { background: rgba(253,164,175,.08); border-color: rgba(253,164,175,.18) !important; }
+
+      /* ── Lists ── */
+      ul { list-style: none; padding: 0; }
+      ul li { padding: 3px 0 3px 1.2rem; position: relative; color: var(--muted); }
+      ul li::before { content: '·'; position: absolute; left: 0; color: var(--cyan); font-weight: 700; }
+
+      /* ── Code blocks ── */
+      pre {
+        background: #0d1117;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.2rem 1.4rem;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.6;
+        color: #cdd9e5;
+      }
+      code { font-family: var(--mono); font-size: .88em; color: var(--cyan); }
+      pre code { color: inherit; }
+
+      /* ── Tag pills ── */
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .06em;
+        padding: 2px 10px;
+        border-radius: 99px;
+        border: 1px solid;
+        margin-right: 6px;
+      }
+      .tag-afk  { color: var(--emerald); border-color: rgba(110,231,183,.35); background: rgba(110,231,183,.08); }
+      .tag-hitl { color: var(--amber);   border-color: rgba(252,211,77,.35);  background: rgba(252,211,77,.08); }
+
+      /* ── Rule table ── */
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: .55rem 1rem; text-align: left; border-bottom: 1px solid var(--border); font-size: .9rem; }
+      th { color: var(--muted); font-weight: 500; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
+      td:first-child { color: var(--violet); font-family: var(--mono); white-space: nowrap; }
+      tr:last-child td { border-bottom: none; }
+
+      /* ── Footer ── */
+      footer {
+        text-align: center;
+        color: var(--muted);
+        font-size: .8rem;
+        margin-top: 4rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+
+      <!-- ── Header ── -->
+      <header>
+        <div class="badge">Developer Reference · Copilot Skills</div>
+        <h1><span>issue-automate</span></h1>
+        <p>Open an issue. The agent classifies, plans, and ships — or asks exactly what it needs.<br>No sub-issues. One draft PR per issue. Local markdown artifacts.</p>
+      </header>
+
+      <!-- ── Pipeline ── -->
+      <section>
+        <h2>The Pipeline</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="label violet">Step 1</div>
+            <div class="value">Issue opened</div>
+          </div>
+          <div class="step">
+            <div class="label amber">Step 2</div>
+            <div class="value">Ambiguity check</div>
+          </div>
+          <div class="step">
+            <div class="label cyan">Step 3</div>
+            <div class="value">Classify &amp; implement</div>
+          </div>
+          <div class="step">
+            <div class="label emerald">Step 4</div>
+            <div class="value">Draft PR</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Pipeline diagram ── -->
+      <section>
+        <h2>Pipeline</h2>
+        <div class="card" style="padding:1.6rem 1.2rem;">
+          <div class="mermaid">
+flowchart LR
+  I["🐛 Issue\nopened"] -->|"model evaluates"| A{Clear?}
+  A -->|"ambiguous"| Q["💬 Post questions\nneeds-human-input"]
+  Q -->|"human replies"| A
+  A -->|"clear / afk label"| B{Scope?}
+  B -->|"simple-task"| SI["⚡ Implement\ndirectly"]
+  B -->|"complex-task"| P["📄 to-prd\nPRD-issue-N.md"]
+  P --> T["📋 to-tasks\ntasks-issue-N.md"]
+  T --> CI["🤖 Implement\nall slices"]
+  SI --> PR["✅ Draft PR"]
+  CI --> PR
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Skill cards ── -->
+      <section>
+        <div class="grid-2">
+
+          <!-- to-prd -->
+          <div class="card tinted-violet">
+            <h3 class="violet">to-prd</h3>
+            <p style="margin-bottom:.8rem;color:var(--muted);">
+              Invoke: <code>@to-prd</code> &nbsp;·&nbsp; Output: <code>PRD-*.md</code>
+            </p>
+            <ul>
+              <li>Synthesizes — no user interview</li>
+              <li>Uses repo vocabulary &amp; ADRs</li>
+              <li>Identifies deep modules</li>
+              <li>Records impl. &amp; testing decisions</li>
+              <li>Explicit out-of-scope section</li>
+            </ul>
+          </div>
+
+          <!-- to-tasks -->
+          <div class="card tinted-cyan">
+            <h3 class="cyan">to-tasks</h3>
+            <p style="margin-bottom:.8rem;color:var(--muted);">
+              Invoke: <code>@to-tasks</code> &nbsp;·&nbsp; Output: <code>tasks-*.md</code>
+            </p>
+            <ul>
+              <li>Vertical tracer-bullet slices</li>
+              <li>All layers end-to-end per slice</li>
+              <li>Tagged <span class="tag tag-afk">AFK</span> or <span class="tag tag-hitl">HITL</span></li>
+              <li>Ordered by <code>Blocked by</code> deps</li>
+              <li>Each slice independently demoable</li>
+            </ul>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── TypeScript: task slice shape ── -->
+      <section>
+        <h2>TypeScript: Task Slice Shape</h2>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <pre style="margin:0;border:none;border-radius:var(--radius);"><code class="language-typescript">type SliceType = 'AFK' | 'HITL';
+
+interface TaskSlice {
+  id: string;               // e.g. 'WT-1'
+  title: string;
+  type: SliceType;
+  parentDoc: string;        // PRD-*.md
+  whatToBuild: string;      // end-to-end behavior, no file paths
+  acceptanceCriteria: string[];
+  blockedBy: string[];      // task IDs; empty = no blockers
+}
+
+// Real slice from PRD-workout-templates.md
+const saveTemplate: TaskSlice = {
+  id: 'WT-1',
+  title: 'Save Completed Workout As Template',
+  type: 'AFK',
+  parentDoc: 'PRD-workout-templates.md',
+  whatToBuild: 'history → name input → persist template → survives reload',
+  acceptanceCriteria: [
+    'Save from history writes to localStorage without touching source workout',
+    'Blank/whitespace names are rejected with a visible validation message',
+    'Reload restores saved templates from persistence',
+  ],
+  blockedBy: [],
+};</code></pre>
+        </div>
+      </section>
+
+      <!-- ── TypeScript: PRD module contract ── -->
+      <section>
+        <h2>TypeScript: PRD Deep Module Contract</h2>
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem;">
+          <code>to-prd</code> identifies <em>deep modules</em> — large encapsulated behavior behind a small, stable interface.
+        </p>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <pre style="margin:0;border:none;border-radius:var(--radius);"><code class="language-typescript">// Deep module: narrow interface, rich implementation hidden inside
+interface WorkoutTemplateCatalog {
+  list(): WorkoutTemplate[];
+  createFromWorkout(workout: Workout, name: string): WorkoutTemplate;
+  rename(id: string, newName: string): void;
+  delete(id: string): void;
+}
+
+// Testing decision from the PRD: test at service boundary, not internals
+describe('WorkoutTemplateCatalog', () => {
+  it('persists a template and restores it after reload', () => {
+    const db = new LocalStorageAdapter();
+    const catalog = new WorkoutTemplateCatalogService(db);
+    catalog.createFromWorkout(completedWorkout, 'Push Day A');
+
+    // Simulate reload — new instance, same storage
+    const restored = new WorkoutTemplateCatalogService(db);
+    expect(restored.list()).toHaveLength(1);
+    expect(restored.list()[0].name).toBe('Push Day A');
+  });
+
+  it('rejects blank template names', () => {
+    const catalog = new WorkoutTemplateCatalogService(new LocalStorageAdapter());
+    expect(() => catalog.createFromWorkout(completedWorkout, '   '))
+      .toThrow('Template name must not be blank');
+  });
+});</code></pre>
+        </div>
+      </section>
+
+      <!-- ── PRD sections ── -->
+      <section>
+        <h2>PRD Structure</h2>
+        <div class="grid-3">
+          <div class="card">
+            <h3 class="violet">Problem &amp; Solution</h3>
+            <p style="color:var(--muted);font-size:.9rem;">User-facing problem statement and high-level answer.</p>
+          </div>
+          <div class="card">
+            <h3 class="cyan">User Stories</h3>
+            <p style="color:var(--muted);font-size:.9rem;">Exhaustive numbered list: <em>As an X, I want Y, so that Z.</em></p>
+          </div>
+          <div class="card">
+            <h3 class="emerald">Decisions &amp; Testing</h3>
+            <p style="color:var(--muted);font-size:.9rem;">Modules, interfaces, schemas, and what/how to test — no file paths.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Task anatomy ── -->
+      <section>
+        <h2>Task Slice Anatomy</h2>
+        <div class="card">
+          <pre><code>## WT-1  Save Completed Workout As Template
+Type:       AFK
+Blocked by: None
+Parent:     PRD-workout-templates.md
+
+What to build:
+  End-to-end path: history → name input → persist template → reload.
+  Separate localStorage key from workouts. Reject blank names.
+
+Acceptance criteria:
+  - [ ] Save from history writes to localStorage without changing the source workout
+  - [ ] Blank or whitespace-only names are rejected with a visible validation outcome
+  - [ ] Reloading the app restores saved templates from persistence
+  - [ ] Tests cover create, persist, and empty-storage backward-compat behaviour</code></pre>
+        </div>
+      </section>
+
+      <!-- ── Rules ── -->
+      <section>
+        <h2>Key Rules</h2>
+        <div class="card">
+          <table>
+            <thead>
+              <tr><th>Skill</th><th>Rule</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>issue-automate</td><td>Clear issue + <code>afk</code> label → skip ambiguity check</td></tr>
+              <tr><td>issue-automate</td><td>All questions in one comment; never split across multiple comments</td></tr>
+              <tr><td>issue-automate</td><td>Simple issues skip <code>to-prd</code> &amp; <code>to-tasks</code> — implement directly</td></tr>
+              <tr><td>issue-automate</td><td>Complex issues: PRD + tasks files committed to branch before implementing</td></tr>
+              <tr><td>@to-prd</td><td>Synthesize — never interview the user first</td></tr>
+              <tr><td>@to-prd</td><td>No file paths or code snippets in decisions (they go stale)</td></tr>
+              <tr><td>@to-tasks</td><td>Vertical slices only — never horizontal (layer-by-layer) slices</td></tr>
+              <tr><td>@to-tasks</td><td>Each slice is independently demoable</td></tr>
+              <tr><td>Both</td><td>Local markdown artifacts only — no external issue trackers</td></tr>
+              <tr><td>Both</td><td>ADRs and domain glossary take priority over assumptions</td></tr>
+              <tr><td>Both</td><td>ADRs and domain glossary take priority over assumptions</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── AFK vs needs-human-input ── -->
+      <section>
+        <h2>AFK vs Needs Human Input</h2>
+        <div class="grid-2">
+          <div class="card tinted-emerald">
+            <h3 class="emerald">AFK — Away From Keyboard</h3>
+            <p style="color:var(--muted);margin-bottom:.7rem;">Issue is clear. Agent classifies, plans (if complex), and implements autonomously.</p>
+            <ul>
+              <li>Title + description are specific and unambiguous</li>
+              <li>Scope is well-defined, no critical unknowns</li>
+              <li>Human can also force AFK by pre-adding the <code>afk</code> label</li>
+            </ul>
+          </div>
+          <div class="card tinted-rose">
+            <h3 class="amber">Needs Human Input</h3>
+            <p style="color:var(--muted);margin-bottom:.7rem;">Issue is ambiguous. Agent posts all blocking questions as one comment and waits.</p>
+            <ul>
+              <li>Requirements missing key details</li>
+              <li>Multiple valid interpretations with different outcomes</li>
+              <li>Agent re-evaluates after each reply and can follow up</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── GitHub Agentic Workflow ── -->
+      <section>
+        <h2>GitHub Agentic Workflow</h2>
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:1.2rem;">
+          The <code>issue-automate</code> workflow triggers on every new issue and drives
+          the full lifecycle — from ambiguity check to draft PR — without manual intervention.
+        </p>
+
+        <!-- Flow diagram -->
+        <div class="card" style="padding:1.4rem 1.2rem;margin-bottom:1.2rem;">
+          <div class="mermaid">
+sequenceDiagram
+  participant Dev  as Developer
+  participant CP   as Copilot Agent
+  participant GH   as GitHub
+
+  Dev->>GH: Open issue (title + description)
+  GH->>CP: issues.opened trigger
+  CP->>CP: Evaluate: clear or ambiguous?
+  alt Ambiguous
+    CP->>GH: Post questions comment
+    CP->>GH: Label needs-human-input
+    Dev->>GH: Reply with answers
+    GH->>CP: issue_comment trigger
+    CP->>CP: Re-evaluate with answers
+  end
+  CP->>GH: Label afk · Create branch AFK/issue-N
+  CP->>CP: Simple? Implement directly
+  CP->>CP: Complex? to-prd → to-tasks → implement
+  CP->>GH: Open draft PR · Label ready-for-review
+  Dev->>GH: Approve &amp; merge
+          </div>
+        </div>
+
+        <!-- Step-by-step cards -->
+        <div class="grid-3" style="margin-bottom:1.2rem;">
+          <div class="card tinted-violet">
+            <h3 class="violet">1 · Clarify</h3>
+            <ul>
+              <li>Model judges title + description</li>
+              <li>Ambiguous → one comment with all questions</li>
+              <li>Human answers; model re-evaluates</li>
+            </ul>
+          </div>
+          <div class="card tinted-cyan">
+            <h3 class="cyan">2 · Plan &amp; Implement</h3>
+            <ul>
+              <li>Simple → implement directly</li>
+              <li>Complex → <code>to-prd</code> → <code>to-tasks</code> → implement</li>
+              <li>Branch: <code>AFK/issue-N</code></li>
+            </ul>
+          </div>
+          <div class="card tinted-emerald">
+            <h3 class="emerald">3 · Draft PR</h3>
+            <ul>
+              <li>One draft PR per issue</li>
+              <li>Labeled <code>ready-for-review</code></li>
+              <li>PR link posted on the issue</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- TypeScript: issue classification -->
+        <h3 style="font-size:.85rem;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.7rem;color:var(--muted);">
+          TypeScript: Issue classification shape
+        </h3>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <pre style="margin:0;border:none;border-radius:var(--radius);"><code class="language-typescript">type IssueVerdict = 'afk' | 'needs-human-input';
+type IssueComplexity = 'simple-task' | 'complex-task';
+
+interface IssueClassification {
+  verdict: IssueVerdict;
+  /** Only present when verdict is 'afk' */
+  complexity?: IssueComplexity;
+  /** Blocking questions; only present when verdict is 'needs-human-input' */
+  questions?: string[];
+}
+
+// The model produces this decision from title + description alone.
+// If the human pre-adds the 'afk' label, the ambiguity step is skipped entirely.
+const example: IssueClassification = {
+  verdict: 'afk',
+  complexity: 'complex-task',
+  // → workflow runs: to-prd → to-tasks → implement → draft PR
+};
+
+const ambiguousExample: IssueClassification = {
+  verdict: 'needs-human-input',
+  questions: [
+    '1. Should the template be editable after creation, or read-only?',
+    '2. Which storage backend: localStorage only, or also cloud sync?',
+  ],
+  // → workflow posts questions as one issue comment and stops.
+};</code></pre>
+        </div>
+
+function buildAgentPrompt({ taskSliceId, tasksFile, prdFile }: AgentPromptInput): string {
+  const tasks = readFileSync(tasksFile, 'utf8');
+  const prd   = readFileSync(prdFile,   'utf8');
+
+  // Extract only the relevant slice to keep the prompt focused
+  const sliceMatch = tasks.match(
+    new RegExp(`(## ${taskSliceId}[\\s\\S]*?)(?=\\n## |$)`)
+  );
+  if (!sliceMatch) throw new Error(`Slice ${taskSliceId} not found in ${tasksFile}`);
+
+  return [
+    '## Task',
+    sliceMatch[1].trim(),
+    '',
+    '## Product context (PRD)',
+    prd.trim(),
+    '',
+    '## Instructions',
+    '- Implement the slice end-to-end (all layers).',
+    '- Write tests that verify acceptance criteria.',
+    '- Do not modify the PRD or tasks file.',
+  ].join('\n');
+}
+
+// Usage
+const prompt = buildAgentPrompt({
+  taskSliceId: 'WT-1',
+  tasksFile: 'tasks-workout-templates.md',
+  prdFile:   'PRD-workout-templates.md',
+});
+console.log(prompt);</code></pre>
+        </div>
+
+        <!-- Tips -->
+        <div class="card" style="margin-top:1.2rem;background:rgba(252,211,77,.05);border-color:rgba(252,211,77,.18);">
+          <h3 style="color:var(--amber);margin-bottom:.6rem;">Tips for writing effective issues</h3>
+          <div class="grid-2">
+            <ul>
+              <li>State the desired behaviour, not the implementation</li>
+              <li>Include acceptance criteria in the description if you have them</li>
+              <li>Add the <code>afk</code> label to bypass ambiguity check</li>
+            </ul>
+            <ul>
+              <li>Answer clarifying questions in one reply to resume faster</li>
+              <li>Complex issues get a PRD + tasks file committed to the branch</li>
+              <li>Check the draft PR description for the model’s plan</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        Generated from <code>issue-automate</code> workflow · uses <code>@to-prd</code> &amp; <code>@to-tasks</code> Copilot skills · gym-tracker repo
+      </footer>
+
+    </div>
+  </body>
+</html>
