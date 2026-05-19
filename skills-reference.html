@@ -194,7 +194,7 @@
       <header>
         <div class="badge">Developer Reference · Copilot Skills</div>
         <h1><span>issue-automate</span></h1>
-        <p>Open an issue. The agent classifies, plans, and ships — or asks exactly what it needs.<br>No sub-issues. One draft PR per issue. Local markdown artifacts.</p>
+        <p>Open an issue. The agent enforces trigger guards first, then checks ambiguity (unless <code>afk</code> is already set), branches from main, and either implements directly or plans through PRD/tasks only when needed.<br>Ambiguous issues pause for one grouped reply before continuing.</p>
       </header>
 
       <!-- ── Pipeline ── -->
@@ -211,11 +211,11 @@
           </div>
           <div class="step">
             <div class="label cyan">Step 3</div>
-            <div class="value">Classify &amp; implement</div>
+            <div class="value">Classify &amp; branch</div>
           </div>
           <div class="step">
             <div class="label emerald">Step 4</div>
-            <div class="value">Draft PR</div>
+            <div class="value">Implement &amp; draft PR</div>
           </div>
         </div>
       </section>
@@ -226,16 +226,24 @@
         <div class="card" style="padding:1.6rem 1.2rem;">
           <div class="mermaid">
 flowchart LR
-  I["🐛 Issue\nopened"] -->|"model evaluates"| A{Clear?}
-  A -->|"ambiguous"| Q["💬 Post questions\nneeds-human-input"]
-  Q -->|"human replies"| A
-  A -->|"clear / afk label"| B{Scope?}
-  B -->|"simple-task"| SI["⚡ Implement\ndirectly"]
-  B -->|"complex-task"| P["📄 to-prd\nPRD-issue-N.md"]
-  P --> T["📋 to-tasks\ntasks-issue-N.md"]
-  T --> CI["🤖 Implement\nall slices"]
-  SI --> PR["✅ Draft PR"]
-  CI --> PR
+  I["🐛 Issue\nopened"] --> G{Has afk label?}
+  G -->|"yes"| L["🌿 Skip ambiguity\ncreate AFK/issue-N from main"]
+  G -->|"no"| A{"Clear?"}
+  A -->|"ambiguous"| Q["💬 One comment\nall blocking questions"]
+  Q --> N["🏷 Label needs-human-input\nstop"]
+  CMT["💬 issue_comment"] --> H{Has needs-human-input?}
+  H -->|"no"| X["noop"]
+  H -->|"yes"| RM["🧹 Remove needs-human-input\nre-evaluate all comments"]
+  RM --> A
+  A -->|"clear"| L
+  L --> AFK["🏷 Label afk"]
+  AFK --> B["Create branch from main\n(skip if exists)"]
+  B --> S{Scope?}
+  S -->|"simple-task"| SI["⚡ Run implement\n+ review skills"]
+  S -->|"complex-task"| C["📄 Add complex-task\ncreate PRD-issue-N.md if absent"]
+  C --> T["📋 Create tasks-issue-N.md only if needed\nthen implement"]
+  SI --> PR["✅ Open draft PR\n[AI]: prefix + automated + ready-for-review"]
+  T --> PR
           </div>
         </div>
       </section>
@@ -248,7 +256,7 @@ flowchart LR
           <div class="card tinted-violet">
             <h3 class="violet">to-prd</h3>
             <p style="margin-bottom:.8rem;color:var(--muted);">
-              Invoke: <code>@to-prd</code> &nbsp;·&nbsp; Output: <code>PRD-*.md</code>
+              Invoke: <code>@to-prd</code> &nbsp;·&nbsp; Output: <code>PRD-issue-N.md</code>
             </p>
             <ul>
               <li>Synthesizes — no user interview</li>
@@ -263,7 +271,7 @@ flowchart LR
           <div class="card tinted-cyan">
             <h3 class="cyan">to-tasks</h3>
             <p style="margin-bottom:.8rem;color:var(--muted);">
-              Invoke: <code>@to-tasks</code> &nbsp;·&nbsp; Output: <code>tasks-*.md</code>
+              Invoke: <code>@to-tasks</code> &nbsp;·&nbsp; Output: <code>tasks-issue-N.md</code>
             </p>
             <ul>
               <li>Vertical tracer-bullet slices</li>
@@ -279,71 +287,80 @@ flowchart LR
 
       <!-- ── TypeScript: task slice shape ── -->
       <section>
-        <h2>TypeScript: Task Slice Shape</h2>
+        <!-- ── TypeScript: issue classification ── -->
+        <h3 style="font-size:.85rem;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.7rem;color:var(--muted);">
+          TypeScript: Issue classification shape
+        </h3>
         <div class="card" style="padding:0;overflow:hidden;">
-          <pre style="margin:0;border:none;border-radius:var(--radius);"><code class="language-typescript">type SliceType = 'AFK' | 'HITL';
+          <pre style="margin:0;border:none;border-radius:var(--radius);"><code class="language-typescript">type IssueVerdict = 'afk' | 'needs-human-input';
+  type IssueComplexity = 'simple-task' | 'complex-task';
 
-interface TaskSlice {
-  id: string;               // e.g. 'WT-1'
-  title: string;
-  type: SliceType;
-  parentDoc: string;        // PRD-*.md
-  whatToBuild: string;      // end-to-end behavior, no file paths
-  acceptanceCriteria: string[];
-  blockedBy: string[];      // task IDs; empty = no blockers
-}
+  interface IssueClassification {
+    verdict: IssueVerdict;
+    /** Only present when verdict is 'afk' */
+    complexity?: IssueComplexity;
+    /** Blocking questions; only present when verdict is 'needs-human-input' */
+    questions?: string[];
+  }
 
-// Real slice from PRD-workout-templates.md
-const saveTemplate: TaskSlice = {
-  id: 'WT-1',
-  title: 'Save Completed Workout As Template',
-  type: 'AFK',
-  parentDoc: 'PRD-workout-templates.md',
-  whatToBuild: 'history → name input → persist template → survives reload',
-  acceptanceCriteria: [
-    'Save from history writes to localStorage without touching source workout',
-    'Blank/whitespace names are rejected with a visible validation message',
-    'Reload restores saved templates from persistence',
-  ],
-  blockedBy: [],
-};</code></pre>
+  // The model decides from title + description, then the workflow acts on the result.
+  // If the human pre-adds the 'afk' label, the ambiguity step is skipped entirely.
+  const simpleExample: IssueClassification = {
+    verdict: 'afk',
+    complexity: 'simple-task',
+    // → workflow labels simple-task, creates AFK/issue-N from main, runs implement + review, then opens a draft PR
+  };
+
+  const complexExample: IssueClassification = {
+    verdict: 'afk',
+    complexity: 'complex-task',
+    // → workflow labels complex-task, creates AFK/issue-N from main, writes PRD/tasks only if needed, then opens a draft PR
+  };
+
+  const ambiguousExample: IssueClassification = {
+    verdict: 'needs-human-input',
+    questions: [
+      '1. Should the template be editable after creation, or read-only?',
+      '2. Which storage backend should be supported first?',
+    ],
+    // → workflow posts one comment with all blockers, labels needs-human-input, then waits for a reply.
+  };</code></pre>
         </div>
-      </section>
 
-      <!-- ── TypeScript: PRD module contract ── -->
-      <section>
-        <h2>TypeScript: PRD Deep Module Contract</h2>
-        <p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem;">
-          <code>to-prd</code> identifies <em>deep modules</em> — large encapsulated behavior behind a small, stable interface.
-        </p>
+        <!-- ── TypeScript: workflow decision sketch ── -->
+        <h3 style="font-size:.85rem;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.7rem;color:var(--muted);">
+          TypeScript: Workflow decision sketch
+        </h3>
         <div class="card" style="padding:0;overflow:hidden;">
-          <pre style="margin:0;border:none;border-radius:var(--radius);"><code class="language-typescript">// Deep module: narrow interface, rich implementation hidden inside
-interface WorkoutTemplateCatalog {
-  list(): WorkoutTemplate[];
-  createFromWorkout(workout: Workout, name: string): WorkoutTemplate;
-  rename(id: string, newName: string): void;
-  delete(id: string): void;
-}
+          <pre style="margin:0;border:none;border-radius:var(--radius);"><code class="language-typescript">type WorkflowTrigger = 'issues.opened' | 'issue_comment';
+  type WorkflowPath = 'noop' | 'clarify' | 'branch' | 'simple-task' | 'complex-task' | 'draft-pr';
 
-// Testing decision from the PRD: test at service boundary, not internals
-describe('WorkoutTemplateCatalog', () => {
-  it('persists a template and restores it after reload', () => {
-    const db = new LocalStorageAdapter();
-    const catalog = new WorkoutTemplateCatalogService(db);
-    catalog.createFromWorkout(completedWorkout, 'Push Day A');
+  interface WorkflowDecision {
+    trigger: WorkflowTrigger;
+    labels: string[];
+    path: WorkflowPath;
+  }
 
-    // Simulate reload — new instance, same storage
-    const restored = new WorkoutTemplateCatalogService(db);
-    expect(restored.list()).toHaveLength(1);
-    expect(restored.list()[0].name).toBe('Push Day A');
-  });
+  const ignoredCommentDecision: WorkflowDecision = {
+    trigger: 'issue_comment',
+    labels: [],
+    path: 'noop',
+    // → issue_comment does nothing unless needs-human-input is present
+  };
 
-  it('rejects blank template names', () => {
-    const catalog = new WorkoutTemplateCatalogService(new LocalStorageAdapter());
-    expect(() => catalog.createFromWorkout(completedWorkout, '   '))
-      .toThrow('Template name must not be blank');
-  });
-});</code></pre>
+  const resumeDecision: WorkflowDecision = {
+    trigger: 'issue_comment',
+    labels: ['afk'],
+    path: 'branch',
+    // → remove needs-human-input, re-evaluate comments, then continue if the issue is now clear
+  };
+
+  const complexIssueDecision: WorkflowDecision = {
+    trigger: 'issues.opened',
+    labels: ['afk', 'complex-task'],
+    path: 'complex-task',
+    // → branch from main, create PRD/tasks only when needed, implement, review, and open a draft PR
+  };</code></pre>
         </div>
       </section>
 
@@ -353,11 +370,11 @@ describe('WorkoutTemplateCatalog', () => {
         <div class="grid-3">
           <div class="card">
             <h3 class="violet">Problem &amp; Solution</h3>
-            <p style="color:var(--muted);font-size:.9rem;">User-facing problem statement and high-level answer.</p>
+            <p style="color:var(--muted);font-size:.9rem;">User-facing problem statement and high-level answer for complex issues.</p>
           </div>
           <div class="card">
             <h3 class="cyan">User Stories</h3>
-            <p style="color:var(--muted);font-size:.9rem;">Exhaustive numbered list: <em>As an X, I want Y, so that Z.</em></p>
+            <p style="color:var(--muted);font-size:.9rem;">Exhaustive numbered list: As an X, I want Y, so that Z.</p>
           </div>
           <div class="card">
             <h3 class="emerald">Decisions &amp; Testing</h3>
@@ -398,14 +415,16 @@ Acceptance criteria:
             <tbody>
               <tr><td>issue-automate</td><td>Clear issue + <code>afk</code> label → skip ambiguity check</td></tr>
               <tr><td>issue-automate</td><td>All questions in one comment; never split across multiple comments</td></tr>
-              <tr><td>issue-automate</td><td>Simple issues skip <code>to-prd</code> &amp; <code>to-tasks</code> — implement directly</td></tr>
-              <tr><td>issue-automate</td><td>Complex issues: PRD + tasks files committed to branch before implementing</td></tr>
+              <tr><td>issue-automate</td><td>Resume on <code>issue_comment</code> only when <code>needs-human-input</code> is present</td></tr>
+              <tr><td>issue-automate</td><td><code>issue_comment</code> without <code>needs-human-input</code> is a no-op</td></tr>
+              <tr><td>issue-automate</td><td>Branch from <code>main</code> as <code>AFK/issue-N</code>; skip if the branch already exists</td></tr>
+              <tr><td>issue-automate</td><td>Simple issues run implement + review directly; complex issues create PRD/tasks only if needed</td></tr>
+              <tr><td>issue-automate</td><td>Draft PR titles use <code>[AI]: </code> prefix and default labels include <code>automated</code> + <code>ready-for-review</code></td></tr>
               <tr><td>@to-prd</td><td>Synthesize — never interview the user first</td></tr>
               <tr><td>@to-prd</td><td>No file paths or code snippets in decisions (they go stale)</td></tr>
               <tr><td>@to-tasks</td><td>Vertical slices only — never horizontal (layer-by-layer) slices</td></tr>
               <tr><td>@to-tasks</td><td>Each slice is independently demoable</td></tr>
               <tr><td>Both</td><td>Local markdown artifacts only — no external issue trackers</td></tr>
-              <tr><td>Both</td><td>ADRs and domain glossary take priority over assumptions</td></tr>
               <tr><td>Both</td><td>ADRs and domain glossary take priority over assumptions</td></tr>
             </tbody>
           </table>
@@ -418,7 +437,7 @@ Acceptance criteria:
         <div class="grid-2">
           <div class="card tinted-emerald">
             <h3 class="emerald">AFK — Away From Keyboard</h3>
-            <p style="color:var(--muted);margin-bottom:.7rem;">Issue is clear. Agent classifies, plans (if complex), and implements autonomously.</p>
+            <p style="color:var(--muted);margin-bottom:.7rem;">Issue is clear. Agent classifies, branches, and implements autonomously.</p>
             <ul>
               <li>Title + description are specific and unambiguous</li>
               <li>Scope is well-defined, no critical unknowns</li>
@@ -431,7 +450,7 @@ Acceptance criteria:
             <ul>
               <li>Requirements missing key details</li>
               <li>Multiple valid interpretations with different outcomes</li>
-              <li>Agent re-evaluates after each reply and can follow up</li>
+              <li>On reply: remove <code>needs-human-input</code>, re-evaluate, and re-add if still ambiguous</li>
             </ul>
           </div>
         </div>
@@ -441,37 +460,54 @@ Acceptance criteria:
       <section>
         <h2>GitHub Agentic Workflow</h2>
         <p style="color:var(--muted);font-size:.9rem;margin-bottom:1.2rem;">
-          The <code>issue-automate</code> workflow triggers on every new issue and drives
-          the full lifecycle — from ambiguity check to draft PR — without manual intervention.
+          The <code>issue-automate</code> workflow triggers on opened issues and only resumes on comments when <code>needs-human-input</code> is present. Clear issues become AFK, ambiguous issues pause for one grouped reply, and complex work flows through PRD/tasks only when required before a draft PR is opened.
         </p>
 
-        <!-- Flow diagram -->
         <div class="card" style="padding:1.4rem 1.2rem;margin-bottom:1.2rem;">
           <div class="mermaid">
 sequenceDiagram
-  participant Dev  as Developer
-  participant CP   as Copilot Agent
-  participant GH   as GitHub
+  participant Dev as Developer
+  participant CP as Copilot Agent
+  participant GH as GitHub
 
   Dev->>GH: Open issue (title + description)
   GH->>CP: issues.opened trigger
-  CP->>CP: Evaluate: clear or ambiguous?
+  alt Issue already has afk label
+    CP->>CP: Skip ambiguity check
+  else No afk label
+    CP->>CP: Read title + description
+  end
   alt Ambiguous
-    CP->>GH: Post questions comment
+    CP->>GH: Add one comment with all blocking questions
     CP->>GH: Label needs-human-input
     Dev->>GH: Reply with answers
     GH->>CP: issue_comment trigger
-    CP->>CP: Re-evaluate with answers
+    alt needs-human-input present
+      CP->>GH: Remove needs-human-input
+      CP->>CP: Re-evaluate title, description, and comments
+    else missing needs-human-input
+      CP->>CP: No-op
+    end
   end
-  CP->>GH: Label afk · Create branch AFK/issue-N
-  CP->>CP: Simple? Implement directly
-  CP->>CP: Complex? to-prd → to-tasks → implement
-  CP->>GH: Open draft PR · Label ready-for-review
-  Dev->>GH: Approve &amp; merge
+  CP->>GH: Label afk
+  CP->>GH: Create branch AFK/issue-N from main
+  alt Simple
+    CP->>GH: Label simple-task
+    CP->>CP: Run implement skill
+    CP->>CP: Run review skill
+  else Complex
+    CP->>GH: Label complex-task
+    CP->>CP: Create PRD if needed
+    CP->>CP: Create tasks if needed
+    CP->>CP: Implement from PRD/tasks
+  end
+  CP->>GH: Open draft PR
+  CP->>GH: PR title prefix [AI]:
+  CP->>GH: Label automated and ready-for-review
+  CP->>GH: Comment PR link on the issue
           </div>
         </div>
 
-        <!-- Step-by-step cards -->
         <div class="grid-3" style="margin-bottom:1.2rem;">
           <div class="card tinted-violet">
             <h3 class="violet">1 · Clarify</h3>
@@ -482,103 +518,19 @@ sequenceDiagram
             </ul>
           </div>
           <div class="card tinted-cyan">
-            <h3 class="cyan">2 · Plan &amp; Implement</h3>
+            <h3 class="cyan">2 · Branch &amp; Build</h3>
             <ul>
+              <li>Clear → label AFK and branch from main</li>
               <li>Simple → implement directly</li>
-              <li>Complex → <code>to-prd</code> → <code>to-tasks</code> → implement</li>
-              <li>Branch: <code>AFK/issue-N</code></li>
+              <li>Complex → PRD first, tasks only if truly needed</li>
             </ul>
           </div>
           <div class="card tinted-emerald">
             <h3 class="emerald">3 · Draft PR</h3>
             <ul>
               <li>One draft PR per issue</li>
-              <li>Labeled <code>ready-for-review</code></li>
+              <li>Labeled <code>automated</code> and <code>ready-for-review</code></li>
               <li>PR link posted on the issue</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- TypeScript: issue classification -->
-        <h3 style="font-size:.85rem;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.7rem;color:var(--muted);">
-          TypeScript: Issue classification shape
-        </h3>
-        <div class="card" style="padding:0;overflow:hidden;">
-          <pre style="margin:0;border:none;border-radius:var(--radius);"><code class="language-typescript">type IssueVerdict = 'afk' | 'needs-human-input';
-type IssueComplexity = 'simple-task' | 'complex-task';
-
-interface IssueClassification {
-  verdict: IssueVerdict;
-  /** Only present when verdict is 'afk' */
-  complexity?: IssueComplexity;
-  /** Blocking questions; only present when verdict is 'needs-human-input' */
-  questions?: string[];
-}
-
-// The model produces this decision from title + description alone.
-// If the human pre-adds the 'afk' label, the ambiguity step is skipped entirely.
-const example: IssueClassification = {
-  verdict: 'afk',
-  complexity: 'complex-task',
-  // → workflow runs: to-prd → to-tasks → implement → draft PR
-};
-
-const ambiguousExample: IssueClassification = {
-  verdict: 'needs-human-input',
-  questions: [
-    '1. Should the template be editable after creation, or read-only?',
-    '2. Which storage backend: localStorage only, or also cloud sync?',
-  ],
-  // → workflow posts questions as one issue comment and stops.
-};</code></pre>
-        </div>
-
-function buildAgentPrompt({ taskSliceId, tasksFile, prdFile }: AgentPromptInput): string {
-  const tasks = readFileSync(tasksFile, 'utf8');
-  const prd   = readFileSync(prdFile,   'utf8');
-
-  // Extract only the relevant slice to keep the prompt focused
-  const sliceMatch = tasks.match(
-    new RegExp(`(## ${taskSliceId}[\\s\\S]*?)(?=\\n## |$)`)
-  );
-  if (!sliceMatch) throw new Error(`Slice ${taskSliceId} not found in ${tasksFile}`);
-
-  return [
-    '## Task',
-    sliceMatch[1].trim(),
-    '',
-    '## Product context (PRD)',
-    prd.trim(),
-    '',
-    '## Instructions',
-    '- Implement the slice end-to-end (all layers).',
-    '- Write tests that verify acceptance criteria.',
-    '- Do not modify the PRD or tasks file.',
-  ].join('\n');
-}
-
-// Usage
-const prompt = buildAgentPrompt({
-  taskSliceId: 'WT-1',
-  tasksFile: 'tasks-workout-templates.md',
-  prdFile:   'PRD-workout-templates.md',
-});
-console.log(prompt);</code></pre>
-        </div>
-
-        <!-- Tips -->
-        <div class="card" style="margin-top:1.2rem;background:rgba(252,211,77,.05);border-color:rgba(252,211,77,.18);">
-          <h3 style="color:var(--amber);margin-bottom:.6rem;">Tips for writing effective issues</h3>
-          <div class="grid-2">
-            <ul>
-              <li>State the desired behaviour, not the implementation</li>
-              <li>Include acceptance criteria in the description if you have them</li>
-              <li>Add the <code>afk</code> label to bypass ambiguity check</li>
-            </ul>
-            <ul>
-              <li>Answer clarifying questions in one reply to resume faster</li>
-              <li>Complex issues get a PRD + tasks file committed to the branch</li>
-              <li>Check the draft PR description for the model’s plan</li>
             </ul>
           </div>
         </div>
