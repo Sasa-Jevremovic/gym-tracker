@@ -94,9 +94,16 @@
   <section>
     <h2 class="text-lg font-semibold text-gray-200 mb-3">Progress Chart</h2>
     <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
-      <select [value]="selectedExerciseId()" (change)="selectedExerciseId.set($any($event.target).value)" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white w-full focus:outline-none focus:border-indigo-500 mb-4">
+      <select [value]="selectedExerciseId()" (change)="selectedExerciseId.set($any($event.target).value)" aria-label="Select an exercise to chart" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white w-full focus:outline-none focus:border-indigo-500 mb-4">
         <option value="">Select an exercise to chart...</option>
-        @for (ex of exercises(); track ex.id) {
+        @if (sortedExercises().favorites.length > 0) {
+          <optgroup label="⭐ Favorites">
+            @for (ex of sortedExercises().favorites; track ex.id) {
+              <option [value]="ex.id">{{ ex.name }}</option>
+            }
+          </optgroup>
+        }
+        @for (ex of sortedExercises().rest; track ex.id) {
           <option [value]="ex.id">{{ ex.name }}</option>
         }
       </select>

@@ -30,6 +30,7 @@ export class LogWorkout {
   }
 
   readonly exercises = this.exerciseService.exercises;
+  readonly sortedExercises = this.exerciseService.sortedExercises;
   readonly categories = computed(() =>
     [...new Set(this.exercises().map((e) => e.category))].sort(),
   );
@@ -62,6 +63,14 @@ export class LogWorkout {
     }
     this.draft.loadFromTemplate(template);
     this.selectedTemplateId.set('');
+  }
+
+  toggleFavorite(id: string): void {
+    this.exerciseService.toggleFavorite(id);
+  }
+
+  isFavorite(id: string): boolean {
+    return this.exerciseService.isFavorite(id);
   }
 
   addExerciseToWorkout(): void {

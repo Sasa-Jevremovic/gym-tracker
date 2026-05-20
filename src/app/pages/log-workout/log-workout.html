@@ -68,19 +68,34 @@
     <div class="flex gap-2">
       <select
         [(ngModel)]="selectedExerciseId"
+        aria-label="Select exercise"
         class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
       >
         <option value="">Select exercise...</option>
+        @if (sortedExercises().favorites.length > 0) {
+          <optgroup label="⭐ Favorites">
+            @for (ex of sortedExercises().favorites; track ex.id) {
+              <option [value]="ex.id">{{ ex.name }}{{ ex.isCustom ? ' *' : '' }}</option>
+            }
+          </optgroup>
+        }
         @for (cat of categories(); track cat) {
           <optgroup [label]="cat">
             @for (ex of exercises(); track ex.id) {
-              @if (ex.category === cat) {
+              @if (ex.category === cat && !isFavorite(ex.id)) {
                 <option [value]="ex.id">{{ ex.name }}{{ ex.isCustom ? ' *' : '' }}</option>
               }
             }
           </optgroup>
         }
       </select>
+      <button
+        (click)="toggleFavorite(selectedExerciseId)"
+        [disabled]="!selectedExerciseId"
+        [attr.aria-label]="selectedExerciseId && isFavorite(selectedExerciseId) ? 'Remove from favorites' : 'Add to favorites'"
+        [attr.title]="selectedExerciseId && isFavorite(selectedExerciseId) ? 'Remove from favorites' : 'Add to favorites'"
+        class="bg-gray-800 border border-gray-700 hover:border-yellow-500 disabled:opacity-40 disabled:cursor-not-allowed text-yellow-400 px-3 py-2 rounded-lg transition-colors text-lg"
+      >{{ selectedExerciseId && isFavorite(selectedExerciseId) ? '⭐' : '☆' }}</button>
       <button
         (click)="addExerciseToWorkout()"
         class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors"

@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { Exercise } from '../models/exercise';
 import { STORAGE_ADAPTER } from './storage-adapter';
 
@@ -18,6 +18,7 @@ const DEFAULT_EXERCISES: Exercise[] = [
 ];
 
 const STORAGE_KEY = 'gymtracker_exercises';
+const FAVORITES_KEY = 'gymtracker_favorite_exercise_ids';
 
 @Injectable({
   providedIn: 'root',
@@ -25,11 +26,42 @@ const STORAGE_KEY = 'gymtracker_exercises';
 export class ExerciseService {
   private readonly storage = inject(STORAGE_ADAPTER);
   private readonly _exercises = signal<Exercise[]>(this.load());
+  private readonly _favoriteIds = signal<Set<string>>(this.loadFavorites());
+
   readonly exercises = this._exercises.asReadonly();
+  readonly favoriteIds = this._favoriteIds.asReadonly();
+
+  readonly sortedExercises = computed(() => {
+    const favIds = this._favoriteIds();
+    const all = this._exercises();
+    const favorites = all.filter(e => favIds.has(e.id));
+    const rest = all.filter(e => !favIds.has(e.id));
+    return { favorites, rest };
+  });
 
   private load(): Exercise[] {
     const custom = this.storage.get<Exercise[]>(STORAGE_KEY) ?? [];
     return [...DEFAULT_EXERCISES, ...custom];
+  }
+
+  private loadFavorites(): Set<string> {
+    const ids = this.storage.get<string[]>(FAVORITES_KEY) ?? [];
+    return new Set(ids);
+  }
+
+  isFavorite(id: string): boolean {
+    return this._favoriteIds().has(id);
+  }
+
+  toggleFavorite(id: string): void {
+    const current = new Set(this._favoriteIds());
+    if (current.has(id)) {
+      current.delete(id);
+    } else {
+      current.add(id);
+    }
+    this._favoriteIds.set(current);
+    this.storage.set(FAVORITES_KEY, [...current]);
   }
 
   addExercise(name: string, category: string): void {
